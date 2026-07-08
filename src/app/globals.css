@@ -1,26 +1,74 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #faf8f4;
+  --foreground: #1c1917;
+
+  /* Luxury palette */
+  --gold: #c9a24b;
+  --gold-light: #e3c887;
+  --gold-dark: #a07f2f;
+  --cream: #f5efe0;
+  --champagne: #efe6d0;
+  --night: #12100e;
+  --night-soft: #1c1917;
+  --ink: #0c0a09;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-gold: var(--gold);
+  --color-gold-light: var(--gold-light);
+  --color-gold-dark: var(--gold-dark);
+  --color-cream: var(--cream);
+  --color-champagne: var(--champagne);
+  --color-night: var(--night);
+  --color-night-soft: var(--night-soft);
+  --color-ink: var(--ink);
+
+  --font-serif: var(--font-cormorant), Georgia, serif;
+  --font-sans: var(--font-jakarta), system-ui, sans-serif;
+  --font-signature: var(--font-great-vibes), cursive;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-jakarta), system-ui, sans-serif;
+}
+
+/* Thin gold scrollbar for the dark invitation pages */
+.invitation-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.invitation-scroll::-webkit-scrollbar-thumb {
+  background: rgba(201, 162, 75, 0.4);
+  border-radius: 3px;
+}
+
+::selection {
+  background: rgba(201, 162, 75, 0.35);
+}
+
+/* Soft gold divider ornament */
+.gold-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--gold);
+}
+.gold-divider::before,
+.gold-divider::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: linear-gradient(to var(--divider-dir, right), transparent, rgba(201, 162, 75, 0.6));
+}
+.gold-divider::before {
+  --divider-dir: right;
+}
+.gold-divider::after {
+  --divider-dir: left;
 }

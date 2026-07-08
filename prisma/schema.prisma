@@ -1,0 +1,179 @@
+// InviteYou — Prisma schema
+// Local development uses SQLite. To switch to PostgreSQL, change the
+// datasource provider to "postgresql" and set DATABASE_URL accordingly.
+// SQLite does not support enums or Json, so enum-like fields are String
+// (constants live in src/lib/constants.ts) and theme config is a JSON string.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String?
+  email     String   @unique
+  password  String
+  role      String   @default("CUSTOMER") // ADMIN | CUSTOMER
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projects WeddingProject[]
+}
+
+model WeddingProject {
+  id            String    @id @default(cuid())
+  userId        String
+  slug          String    @unique
+  brideName     String
+  groomName     String
+  title         String?
+  quote         String?
+  story         String?
+  weddingDate   DateTime
+  isPublished   Boolean   @default(false)
+  themeId       String?
+  musicUrl      String?
+  coverImageUrl String?
+  giftQrUrl     String?
+  giftDetails   String?
+  maxRsvp       Int?
+  rsvpDeadline  DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  theme     Theme?           @relation(fields: [themeId], references: [id])
+  events    WeddingEvent[]
+  gallery   GalleryImage[]
+  guests    Guest[]
+  rsvps     Rsvp[]
+  wishes    GuestWish[]
+  analytics AnalyticsEvent[]
+
+  @@index([userId])
+}
+
+model WeddingEvent {
+  id          String   @id @default(cuid())
+  projectId   String
+  title       String
+  description String?
+  eventDate   DateTime
+  startTime   String?
+  endTime     String?
+  venueName   String
+  address     String
+  mapUrl      String?
+  order       Int      @default(0)
+
+  project WeddingProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model Theme {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  previewUrl  String?
+  config      String   @default("{}") // JSON string
+  isPremium   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  projects WeddingProject[]
+}
+
+model GalleryImage {
+  id        String  @id @default(cuid())
+  projectId String
+  imageUrl  String
+  caption   String?
+  order     Int     @default(0)
+
+  project WeddingProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model Guest {
+  id         String    @id @default(cuid())
+  projectId  String
+  name       String
+  phone      String?
+  email      String?
+  groupName  String?
+  inviteCode String    @unique @default(cuid())
+  status     String    @default("INVITED") // INVITED | OPENED | RSVP_PENDING | ATTENDING | NOT_ATTENDING | MAYBE
+  maxPax     Int       @default(1)
+  openedAt   DateTime?
+  createdAt  DateTime  @default(now())
+
+  project WeddingProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  rsvp    Rsvp?
+
+  @@index([projectId])
+}
+
+model Rsvp {
+  id             String   @id @default(cuid())
+  projectId      String
+  guestId        String?  @unique
+  name           String
+  phone          String?
+  attendance     String // ATTENDING | NOT_ATTENDING | MAYBE
+  paxCount       Int      @default(1)
+  mealPreference String?
+  message        String?
+  createdAt      DateTime @default(now())
+
+  project WeddingProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  guest   Guest?         @relation(fields: [guestId], references: [id])
+
+  @@index([projectId])
+}
+
+model GuestWish {
+  id        String   @id @default(cuid())
+  projectId String
+  name      String
+  message   String
+  isVisible Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  project WeddingProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  projectId String
+  eventType String // VISIT | QR_SCAN | RSVP_SUBMIT | WISH_SUBMIT
+  visitorId String?
+  device    String?
+  referrer  String?
+  metadata  String?
+  createdAt DateTime @default(now())
+
+  project WeddingProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model Payment {
+  id          String   @id @default(cuid())
+  userId      String
+  projectId   String?
+  amount      Decimal
+  currency    String   @default("MYR")
+  status      String   @default("PENDING") // PENDING | PAID | FAILED | REFUNDED | EXPIRED
+  provider    String
+  providerRef String?
+  createdAt   DateTime @default(now())
+}
