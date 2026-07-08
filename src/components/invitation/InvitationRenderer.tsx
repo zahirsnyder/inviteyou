@@ -1,13 +1,17 @@
 import type { InvitationData } from "./types";
+import { CinematicJourneyTheme } from "./themes/CinematicJourneyTheme";
 import { DarkGoldTheme } from "./themes/DarkGoldTheme";
 
 /**
- * Picks the theme component for an invitation. All themes currently render
- * Dark Cinematic Gold — new themes register here as they are built.
+ * Picks the theme component for an invitation. The flagship
+ * dark-cinematic-gold theme renders the scroll-storytelling journey;
+ * other seeded themes fall back to the classic section renderer until
+ * their own renderers are built.
  */
 export function InvitationRenderer({ data }: { data: InvitationData }) {
   switch (data.themeSlug) {
     case "dark-cinematic-gold":
+      return <CinematicJourneyTheme data={data} />;
     default:
       return <DarkGoldTheme data={data} />;
   }

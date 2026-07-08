@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
+import { getSessionUserId } from "@/lib/auth";
 import { InvitationRenderer } from "@/components/invitation/InvitationRenderer";
 import type { InvitationData } from "@/components/invitation/types";
 
@@ -9,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ src?: string }>;
+  searchParams: Promise<{ src?: string; preview?: string }>;
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -26,7 +27,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function InvitePage({ params, searchParams }: Props) {
-  const [{ slug }, { src }] = await Promise.all([params, searchParams]);
+  const [{ slug }, { src, preview }] = await Promise.all([params, searchParams]);
 
   const project = await prisma.weddingProject.findUnique({
     where: { slug },
@@ -42,25 +43,35 @@ export default async function InvitePage({ params, searchParams }: Props) {
     },
   });
 
-  if (!project || !project.isPublished) notFound();
+  if (!project) notFound();
 
-  // Basic analytics: record the visit (QR_SCAN when arriving via the QR code link).
-  const headerList = await headers();
-  const userAgent = headerList.get("user-agent") ?? "";
-  const device = /mobile|android|iphone|ipad/i.test(userAgent) ? "mobile" : "desktop";
-  const referrer = headerList.get("referer");
-  prisma.analyticsEvent
-    .create({
-      data: {
-        projectId: project.id,
-        eventType: src === "qr" ? "QR_SCAN" : "VISIT",
-        device,
-        referrer: referrer ?? "direct",
-      },
-    })
-    .catch(() => {
-      // Analytics must never break the invitation page.
-    });
+  // Admin preview mode: the owner may view an unpublished draft with ?preview=1.
+  const isDraftPreview = !project.isPublished;
+  if (isDraftPreview) {
+    const userId = preview === "1" ? await getSessionUserId() : null;
+    if (!userId || userId !== project.userId) notFound();
+  }
+
+  // Basic analytics: record the visit (QR_SCAN when arriving via the QR code
+  // link). Owner previews are not counted.
+  if (!isDraftPreview && preview !== "1") {
+    const headerList = await headers();
+    const userAgent = headerList.get("user-agent") ?? "";
+    const device = /mobile|android|iphone|ipad/i.test(userAgent) ? "mobile" : "desktop";
+    const referrer = headerList.get("referer");
+    prisma.analyticsEvent
+      .create({
+        data: {
+          projectId: project.id,
+          eventType: src === "qr" ? "QR_SCAN" : "VISIT",
+          device,
+          referrer: referrer ?? "direct",
+        },
+      })
+      .catch(() => {
+        // Analytics must never break the invitation page.
+      });
+  }
 
   const data: InvitationData = {
     slug: project.slug,
@@ -99,5 +110,14 @@ export default async function InvitePage({ params, searchParams }: Props) {
     })),
   };
 
-  return <InvitationRenderer data={data} />;
+  return (
+    <>
+      {isDraftPreview && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[70] rounded-full border border-amber-400/50 bg-amber-950/80 backdrop-blur-sm px-5 py-2 text-amber-200 text-xs tracking-widest uppercase">
+          Draft preview — only you can see this
+        </div>
+      )}
+      <InvitationRenderer data={data} />
+    </>
+  );
 }

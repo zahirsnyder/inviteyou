@@ -77,7 +77,7 @@ export default async function ProjectOverviewPage({
         <div className="flex gap-3">
           <CopyLinkButton url={inviteUrl} />
           <Link
-            href={`/invite/${project.slug}`}
+            href={project.isPublished ? `/invite/${project.slug}` : `/invite/${project.slug}?preview=1`}
             target="_blank"
             className={`rounded-full px-5 py-2 text-sm border transition-colors ${
               project.isPublished
