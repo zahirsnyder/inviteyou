@@ -15,7 +15,7 @@ const fadeUp = {
 
 const features = [
   { title: "Cinematic Invitation", text: "A full-screen animated wedding website that opens like a film — not a flat template." },
-  { title: "RSVP & Guest Flow", text: "Collect attendance, pax count, and meal preferences. Watch responses arrive in real time." },
+  { title: "RSVP & Guest Flow", text: "Collect attendance and guest count. Watch responses arrive in real time." },
   { title: "Guestbook Wishes", text: "Let loved ones leave heartfelt messages that appear beautifully on your page." },
   { title: "QR Code Sharing", text: "Generate an elegant QR code for physical cards, WhatsApp, and on-the-day displays." },
   { title: "Photo Gallery", text: "A romantic editorial gallery for your engagement and pre-wedding photographs." },
@@ -53,7 +53,10 @@ export function HomePage({ isLoggedIn }: { isLoggedIn: boolean }) {
             Invite<span className="text-gold">You</span>
           </Link>
           <div className="flex items-center gap-6 text-sm">
-            <Link href="/invite/amir-aisyah" className="hidden sm:block text-cream/70 hover:text-gold transition-colors">
+            <Link href="/templates" className="hidden sm:block text-cream/70 hover:text-gold transition-colors">
+              Templates
+            </Link>
+            <Link href="/invite/zahir-nisa" className="hidden sm:block text-cream/70 hover:text-gold transition-colors">
               Live Demo
             </Link>
             {isLoggedIn ? (
@@ -128,13 +131,13 @@ export function HomePage({ isLoggedIn }: { isLoggedIn: boolean }) {
             className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4"
           >
             <Link
-              href={isLoggedIn ? "/dashboard/projects/new" : "/register"}
+              href="/templates"
               className="rounded-full bg-gold text-night px-10 py-4 font-medium tracking-wide hover:bg-gold-light transition-colors"
             >
-              Create Your Invitation
+              Browse Templates
             </Link>
             <Link
-              href="/invite/amir-aisyah"
+              href="/invite/zahir-nisa"
               className="rounded-full border border-cream/25 px-10 py-4 text-cream/80 hover:border-gold hover:text-gold transition-all"
             >
               View Live Demo

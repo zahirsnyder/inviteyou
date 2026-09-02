@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { createSession, destroySession } from "@/lib/auth";
-import { loginSchema, registerSchema } from "@/lib/validations";
+import { loginSchema, registerSchema, safeNextPath } from "@/lib/validations";
 
 export type AuthState = { error?: string };
 
@@ -29,7 +29,7 @@ export async function registerAction(_prev: AuthState, formData: FormData): Prom
   });
 
   await createSession(user.id);
-  redirect("/dashboard");
+  redirect(safeNextPath(formData.get("next")));
 }
 
 export async function loginAction(_prev: AuthState, formData: FormData): Promise<AuthState> {
@@ -48,7 +48,7 @@ export async function loginAction(_prev: AuthState, formData: FormData): Promise
   }
 
   await createSession(user.id);
-  redirect("/dashboard");
+  redirect(safeNextPath(formData.get("next")));
 }
 
 export async function logoutAction() {

@@ -23,14 +23,13 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     orderBy: { createdAt: "asc" },
   });
 
-  const header = ["Name", "Phone", "Attendance", "Pax", "Meal Preference", "Message", "Received At"];
+  const header = ["Name", "Phone", "Attendance", "Pax", "Message", "Received At"];
   const rows = rsvps.map((r) =>
     [
       r.name,
       r.phone ?? "",
       r.attendance,
       String(r.paxCount),
-      r.mealPreference ?? "",
       r.message ?? "",
       r.createdAt.toISOString(),
     ]

@@ -26,6 +26,7 @@ export default async function EditorPage({ params }: { params: Promise<{ id: str
         <section>
           <h2 className="font-serif text-2xl mb-5">Wedding Details</h2>
           <EditProjectForm
+            locked={project.lockedAt !== null}
             project={{
               id: project.id,
               groomName: project.groomName,

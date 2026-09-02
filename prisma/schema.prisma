@@ -1,16 +1,18 @@
 // InviteYou — Prisma schema
-// Local development uses SQLite. To switch to PostgreSQL, change the
-// datasource provider to "postgresql" and set DATABASE_URL accordingly.
-// SQLite does not support enums or Json, so enum-like fields are String
-// (constants live in src/lib/constants.ts) and theme config is a JSON string.
+// Production runs on PostgreSQL (Supabase). `DATABASE_URL` is the pooled
+// connection used by the app at runtime; `DIRECT_URL` is the direct (non-pooled)
+// connection Prisma uses for migrations. Enum-like fields are kept as String
+// (constants live in src/lib/constants.ts) and theme config is a JSON string,
+// so the schema stays portable.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -22,7 +24,8 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  projects WeddingProject[]
+  projects  WeddingProject[]
+  purchases TemplatePurchase[]
 }
 
 model WeddingProject {
@@ -43,17 +46,24 @@ model WeddingProject {
   giftDetails   String?
   maxRsvp       Int?
   rsvpDeadline  DateTime?
+  // Once an invitation is first published it is "locked": the couple's identity
+  // (names, date, slug) can no longer be changed — a new invitation needs a new
+  // purchase. `expiresAt` is when a live invitation stops being publicly shown
+  // (default: wedding date + grace period); it can be extended.
+  lockedAt      DateTime?
+  expiresAt     DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  theme     Theme?           @relation(fields: [themeId], references: [id])
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  theme     Theme?            @relation(fields: [themeId], references: [id])
   events    WeddingEvent[]
   gallery   GalleryImage[]
   guests    Guest[]
   rsvps     Rsvp[]
   wishes    GuestWish[]
   analytics AnalyticsEvent[]
+  purchase  TemplatePurchase?
 
   @@index([userId])
 }
@@ -77,16 +87,45 @@ model WeddingEvent {
 }
 
 model Theme {
+  id              String   @id @default(cuid())
+  name            String
+  slug            String   @unique
+  description     String?
+  tagline         String?
+  previewUrl      String? // link to a live demo invitation
+  previewImageUrl String? // card / hero artwork for the marketplace
+  config          String   @default("{}") // JSON string
+  isPremium       Boolean  @default(false)
+  isListed        Boolean  @default(true) // show in the template marketplace
+  priceCents      Int      @default(0) // 0 = free
+  currency        String   @default("MYR")
+  createdAt       DateTime @default(now())
+
+  projects  WeddingProject[]
+  purchases TemplatePurchase[]
+}
+
+// One purchase = the right to publish ONE invitation on a template.
+// It is "unused" while `projectId` is null; creating an invitation from the
+// template consumes it by binding it to that project. Building another
+// invitation (any couple) needs another purchase. No payment gateway yet —
+// `claimTemplateAction` mints one instantly; an admin can adjust `status`.
+model TemplatePurchase {
   id          String   @id @default(cuid())
-  name        String
-  slug        String   @unique
-  description String?
-  previewUrl  String?
-  config      String   @default("{}") // JSON string
-  isPremium   Boolean  @default(false)
+  userId      String
+  themeId     String
+  projectId   String?  @unique
+  status      String   @default("PAID") // PENDING | PAID | REFUNDED
+  amountCents Int      @default(0)
+  currency    String   @default("MYR")
   createdAt   DateTime @default(now())
 
-  projects WeddingProject[]
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  theme   Theme           @relation(fields: [themeId], references: [id], onDelete: Cascade)
+  project WeddingProject? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([userId, themeId, status])
 }
 
 model GalleryImage {
@@ -128,7 +167,8 @@ model Rsvp {
   phone          String?
   attendance     String // ATTENDING | NOT_ATTENDING | MAYBE
   paxCount       Int      @default(1)
-  mealPreference String?
+  mealPreference String? // deprecated — no longer collected; kept for old rows
+
   message        String?
   createdAt      DateTime @default(now())
 

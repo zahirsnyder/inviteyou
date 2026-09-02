@@ -20,24 +20,43 @@ export type ProjectFormData = {
   giftDetails: string;
 };
 
-export function EditProjectForm({ project }: { project: ProjectFormData }) {
+export function EditProjectForm({
+  project,
+  locked = false,
+}: {
+  project: ProjectFormData;
+  locked?: boolean;
+}) {
   const boundAction = updateProjectAction.bind(null, project.id);
   const [state, formAction, pending] = useActionState<ActionState, FormData>(boundAction, {});
+  const lockedInput = `${inputClass} read-only:bg-ink/5 read-only:text-ink/50 read-only:cursor-not-allowed`;
 
   return (
     <form action={formAction} className="space-y-6">
+      {locked && (
+        <>
+          <p className="text-sm rounded-lg bg-ink/5 border border-ink/10 px-4 py-3 text-ink/60">
+            Names and wedding date are locked because this invitation has been published.
+            A different wedding needs a new invitation.
+          </p>
+          {/* Read-only fields still post, but guarantee the values regardless. */}
+          <input type="hidden" name="groomName" value={project.groomName} />
+          <input type="hidden" name="brideName" value={project.brideName} />
+          <input type="hidden" name="weddingDate" value={project.weddingDate} />
+        </>
+      )}
       <div className="grid sm:grid-cols-2 gap-6">
         <div>
           <label htmlFor="groomName" className={labelClass}>
             Groom&apos;s Name
           </label>
-          <input id="groomName" name="groomName" required defaultValue={project.groomName} className={inputClass} />
+          <input id="groomName" name="groomName" required readOnly={locked} defaultValue={project.groomName} className={lockedInput} />
         </div>
         <div>
           <label htmlFor="brideName" className={labelClass}>
             Bride&apos;s Name
           </label>
-          <input id="brideName" name="brideName" required defaultValue={project.brideName} className={inputClass} />
+          <input id="brideName" name="brideName" required readOnly={locked} defaultValue={project.brideName} className={lockedInput} />
         </div>
       </div>
 
@@ -51,8 +70,9 @@ export function EditProjectForm({ project }: { project: ProjectFormData }) {
             name="weddingDate"
             type="date"
             required
+            disabled={locked}
             defaultValue={project.weddingDate}
-            className={inputClass}
+            className={lockedInput}
           />
         </div>
         <div>

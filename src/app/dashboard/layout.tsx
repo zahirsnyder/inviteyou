@@ -19,8 +19,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
               <Link href="/dashboard" className="hover:text-ink transition-colors">
                 Projects
               </Link>
-              <Link href="/invite/amir-aisyah" className="hover:text-ink transition-colors">
-                Demo Invitation
+              <Link href="/dashboard/templates" className="hover:text-ink transition-colors">
+                My Templates
+              </Link>
+              <Link href="/templates" className="hover:text-ink transition-colors">
+                Browse Templates
               </Link>
             </nav>
           </div>

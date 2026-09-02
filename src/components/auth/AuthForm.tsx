@@ -5,9 +5,10 @@ import { useActionState } from "react";
 import { motion } from "framer-motion";
 import { loginAction, registerAction, type AuthState } from "@/app/actions/auth";
 
-export function AuthForm({ mode }: { mode: "login" | "register" }) {
+export function AuthForm({ mode, next }: { mode: "login" | "register"; next?: string }) {
   const action = mode === "login" ? loginAction : registerAction;
   const [state, formAction, pending] = useActionState<AuthState, FormData>(action, {});
+  const nextQuery = next ? `?next=${encodeURIComponent(next)}` : "";
 
   return (
     <div className="min-h-screen bg-night text-cream flex items-center justify-center px-6">
@@ -32,6 +33,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
           </p>
 
           <form action={formAction} className="space-y-5">
+            {next && <input type="hidden" name="next" value={next} />}
             {mode === "register" && (
               <div>
                 <label htmlFor="name" className="block text-xs uppercase tracking-widest text-cream/60 mb-2">
@@ -93,14 +95,14 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
             {mode === "login" ? (
               <>
                 New to InviteYou?{" "}
-                <Link href="/register" className="text-gold hover:text-gold-light">
+                <Link href={`/register${nextQuery}`} className="text-gold hover:text-gold-light">
                   Create an account
                 </Link>
               </>
             ) : (
               <>
                 Already have an account?{" "}
-                <Link href="/login" className="text-gold hover:text-gold-light">
+                <Link href={`/login${nextQuery}`} className="text-gold hover:text-gold-light">
                   Log in
                 </Link>
               </>

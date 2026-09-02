@@ -30,7 +30,6 @@ export async function submitRsvpAction(slug: string, _prev: PublicActionState, f
     phone: formData.get("phone") ?? undefined,
     attendance: formData.get("attendance"),
     paxCount: formData.get("paxCount") ?? 1,
-    mealPreference: formData.get("mealPreference") ?? undefined,
     message: formData.get("message") ?? undefined,
   });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
@@ -44,7 +43,6 @@ export async function submitRsvpAction(slug: string, _prev: PublicActionState, f
         phone: d.phone || null,
         attendance: d.attendance,
         paxCount: d.paxCount,
-        mealPreference: d.mealPreference || null,
         message: d.message || null,
       },
     }),

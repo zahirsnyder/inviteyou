@@ -113,28 +113,20 @@ export function RsvpScene({ slug }: { slug: string }) {
                 </div>
               </motion.div>
 
-              <motion.div variants={fieldVariants} className="grid grid-cols-2 gap-5">
-                <div>
-                  <label htmlFor="rsvp-pax" className={labelClass}>
-                    Number of Guests
-                  </label>
-                  <input
-                    id="rsvp-pax"
-                    name="paxCount"
-                    type="number"
-                    min={1}
-                    max={20}
-                    defaultValue={1}
-                    required
-                    className={inputClass}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="rsvp-meal" className={labelClass}>
-                    Meal Preference
-                  </label>
-                  <input id="rsvp-meal" name="mealPreference" className={inputClass} placeholder="e.g. Vegetarian" />
-                </div>
+              <motion.div variants={fieldVariants}>
+                <label htmlFor="rsvp-pax" className={labelClass}>
+                  Number of Guests
+                </label>
+                <input
+                  id="rsvp-pax"
+                  name="paxCount"
+                  type="number"
+                  min={1}
+                  max={20}
+                  defaultValue={1}
+                  required
+                  className={inputClass}
+                />
               </motion.div>
 
               <motion.div variants={fieldVariants}>

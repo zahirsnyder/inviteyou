@@ -25,6 +25,8 @@ export type InvitationGalleryImage = {
 
 export type InvitationData = {
   slug: string;
+  /** Show a "made with InviteYou" badge (unpaid / preview invitations). */
+  watermark: boolean;
   groomName: string;
   brideName: string;
   title: string | null;

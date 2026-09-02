@@ -63,7 +63,6 @@ export default async function RsvpPage({ params }: { params: Promise<{ id: strin
                 <th className="px-5 py-4 font-medium">Guest</th>
                 <th className="px-5 py-4 font-medium">Status</th>
                 <th className="px-5 py-4 font-medium">Pax</th>
-                <th className="px-5 py-4 font-medium">Meal</th>
                 <th className="px-5 py-4 font-medium">Message</th>
                 <th className="px-5 py-4 font-medium">Received</th>
               </tr>
@@ -83,7 +82,6 @@ export default async function RsvpPage({ params }: { params: Promise<{ id: strin
                     </span>
                   </td>
                   <td className="px-5 py-4">{rsvp.paxCount}</td>
-                  <td className="px-5 py-4 text-ink/60">{rsvp.mealPreference ?? "—"}</td>
                   <td className="px-5 py-4 text-ink/60 max-w-xs">
                     {rsvp.message ? <span className="line-clamp-2">{rsvp.message}</span> : "—"}
                   </td>

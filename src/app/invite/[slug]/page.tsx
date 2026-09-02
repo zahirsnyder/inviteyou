@@ -3,7 +3,9 @@ import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { getSessionUserId } from "@/lib/auth";
+import { isExpired } from "@/lib/constants";
 import { InvitationRenderer } from "@/components/invitation/InvitationRenderer";
+import { InvitationEnded } from "@/components/invitation/InvitationEnded";
 import type { InvitationData } from "@/components/invitation/types";
 
 export const dynamic = "force-dynamic";
@@ -17,9 +19,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const project = await prisma.weddingProject.findUnique({
     where: { slug },
-    select: { title: true, groomName: true, brideName: true, isPublished: true },
+    select: { title: true, groomName: true, brideName: true, isPublished: true, expiresAt: true },
   });
-  if (!project || !project.isPublished) return { title: "Invitation" };
+  if (!project || !project.isPublished || isExpired(project.expiresAt)) {
+    return { title: "Invitation", robots: { index: false, follow: false } };
+  }
   return {
     title: project.title ?? `The Wedding of ${project.groomName} & ${project.brideName}`,
     description: `You are warmly invited to the wedding of ${project.groomName} & ${project.brideName}.`,
@@ -33,6 +37,7 @@ export default async function InvitePage({ params, searchParams }: Props) {
     where: { slug },
     include: {
       theme: { select: { slug: true } },
+      purchase: { select: { status: true } },
       events: { orderBy: { order: "asc" } },
       gallery: { orderBy: { order: "asc" } },
       wishes: {
@@ -47,13 +52,16 @@ export default async function InvitePage({ params, searchParams }: Props) {
 
   // Admin preview mode: the owner may view an unpublished draft with ?preview=1.
   const isDraftPreview = !project.isPublished;
-  if (isDraftPreview) {
-    const userId = preview === "1" ? await getSessionUserId() : null;
-    if (!userId || userId !== project.userId) notFound();
+  const isOwnerPreview = preview === "1" && (await getSessionUserId()) === project.userId;
+  if (isDraftPreview && !isOwnerPreview) notFound();
+
+  // A live invitation stops showing to guests once it passes its expiry date.
+  if (isExpired(project.expiresAt) && !isOwnerPreview) {
+    return <InvitationEnded groomName={project.groomName} brideName={project.brideName} />;
   }
 
   // Basic analytics: record the visit (QR_SCAN when arriving via the QR code
-  // link). Owner previews are not counted.
+  // link). Previews are not counted.
   if (!isDraftPreview && preview !== "1") {
     const headerList = await headers();
     const userAgent = headerList.get("user-agent") ?? "";
@@ -75,6 +83,7 @@ export default async function InvitePage({ params, searchParams }: Props) {
 
   const data: InvitationData = {
     slug: project.slug,
+    watermark: project.purchase?.status !== "PAID",
     groomName: project.groomName,
     brideName: project.brideName,
     title: project.title,

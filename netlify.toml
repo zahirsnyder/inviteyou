@@ -1,0 +1,14 @@
+# Netlify build configuration for InviteYou (Next.js 16 + Prisma/Postgres).
+# The Next.js runtime is provided by @netlify/plugin-nextjs, which Netlify
+# installs automatically when it sees this plugin entry.
+
+[build]
+  command = "prisma generate && prisma migrate deploy && next build"
+  publish = ".next"
+
+[build.environment]
+  # Prisma downloads its engines at install time; keep them for the build.
+  PRISMA_HIDE_UPDATE_MESSAGE = "true"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"

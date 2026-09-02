@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getOwnedProject } from "@/lib/projects";
-import { appUrl } from "@/lib/constants";
+import { appUrl, expiresWithin, isExpired } from "@/lib/constants";
 import { ProjectNav } from "@/components/dashboard/ProjectNav";
 import { PublishToggle } from "@/components/dashboard/PublishToggle";
 import { CopyLinkButton } from "@/components/dashboard/CopyLinkButton";
+import { ExtendInvitationButton } from "@/components/dashboard/ExtendInvitationButton";
 
 export const metadata = { title: "Project Overview" };
 
@@ -29,6 +30,9 @@ export default async function ProjectOverviewPage({
     prisma.analyticsEvent.count({ where: { projectId: id, eventType: "VISIT" } }),
     prisma.analyticsEvent.count({ where: { projectId: id, eventType: "QR_SCAN" } }),
   ]);
+
+  const expired = isExpired(project.expiresAt);
+  const expiresSoon = expiresWithin(project.expiresAt, 30);
 
   const attending = rsvpGroups.find((g) => g.attendance === "ATTENDING");
   const notAttending = rsvpGroups.find((g) => g.attendance === "NOT_ATTENDING");
@@ -56,10 +60,34 @@ export default async function ProjectOverviewPage({
           </h1>
           <p className="text-ink/50 text-sm mt-1">{dateFmt.format(project.weddingDate)}</p>
         </div>
-        <PublishToggle projectId={project.id} isPublished={project.isPublished} />
+        <PublishToggle
+          projectId={project.id}
+          isPublished={project.isPublished}
+          disabled={expired && !project.isPublished}
+        />
       </div>
 
       <ProjectNav projectId={project.id} />
+
+      {(expired || expiresSoon) && (
+        <div
+          className={`rounded-2xl border p-6 mb-8 flex flex-wrap items-center justify-between gap-4 ${
+            expired ? "border-red-200 bg-red-50" : "border-amber-200 bg-amber-50"
+          }`}
+        >
+          <div>
+            <p className="text-sm font-medium">
+              {expired
+                ? "This invitation has expired — guests now see a closing page."
+                : `This invitation closes on ${dateFmt.format(project.expiresAt!)}.`}
+            </p>
+            <p className="text-sm text-ink/50 mt-0.5">
+              Extend it to keep the page live for guests.
+            </p>
+          </div>
+          <ExtendInvitationButton projectId={project.id} />
+        </div>
+      )}
 
       <div
         className={`rounded-2xl border p-6 mb-8 flex flex-wrap items-center justify-between gap-4 ${
@@ -71,6 +99,9 @@ export default async function ProjectOverviewPage({
         <div>
           <p className="text-sm font-medium">
             {project.isPublished ? "Your invitation is live" : "Your invitation is a draft"}
+            {project.isPublished && project.expiresAt && !expired && (
+              <span className="font-normal text-ink/50"> · until {dateFmt.format(project.expiresAt)}</span>
+            )}
           </p>
           <p className="text-sm text-ink/50 mt-0.5 break-all">{inviteUrl}</p>
         </div>

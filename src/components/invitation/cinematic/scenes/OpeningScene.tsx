@@ -36,6 +36,15 @@ function SceneContent({
 
   return (
     <div className="relative h-full w-full flex items-center justify-center">
+      {!data.coverImageUrl && (
+        <div className="absolute inset-0 overflow-hidden bg-[radial-gradient(circle_at_50%_35%,rgba(201,162,75,0.16),transparent_34%),radial-gradient(circle_at_15%_85%,rgba(160,127,47,0.09),transparent_28%),linear-gradient(145deg,#0c0a09,#1c1917_52%,#12100e)]">
+          <div className="absolute inset-6 rounded-[2.5rem] border border-gold/15 sm:inset-10" />
+          <div className="absolute left-1/2 top-[12%] h-28 w-px bg-gradient-to-b from-transparent via-gold/35 to-transparent" />
+          <div className="absolute bottom-[10%] left-1/2 h-28 w-px bg-gradient-to-b from-transparent via-gold/35 to-transparent" />
+          <span className="absolute left-[8%] top-[14%] font-serif text-8xl text-gold/[0.07]">❦</span>
+          <span className="absolute bottom-[12%] right-[8%] rotate-180 font-serif text-8xl text-gold/[0.07]">❦</span>
+        </div>
+      )}
       {data.coverImageUrl && (
         <motion.div style={{ scale: bgScale }} className="absolute inset-0 will-change-transform">
           <Image

@@ -1,69 +1,132 @@
 # InviteYou
 
-A premium animated wedding invitation web app — couples create a cinematic wedding
-website, share it with guests via link or QR code, collect RSVPs and guestbook wishes,
-and manage everything from a dashboard.
+A premium animated wedding invitation SaaS. Visitors browse **templates**, unlock
+the one they want, then a guided wizard walks them through filling in every part —
+names, date, story, cover, event schedule, gallery, and gift details — and publishes
+a cinematic wedding website they share with guests via link or QR code. Couples
+collect RSVPs and guestbook wishes and manage everything from a dashboard.
 
 ## Tech Stack
 
 - **Next.js 16** (App Router) + TypeScript
 - **Tailwind CSS 4** with a custom luxury design system (gold / cream / night palette)
 - **Framer Motion** for cinematic animations
-- **Prisma** ORM — SQLite for local dev, PostgreSQL-ready
+- **Prisma** ORM on **PostgreSQL** (Supabase in production)
 - **Zod** validation, server actions throughout
 - **jose** JWT session cookies + bcryptjs password hashing
 - **qrcode** for QR code generation
+- Deployed on **Netlify**
 
-## Getting Started
+## Local Development
+
+You need a PostgreSQL database. Use a local Postgres, or a free Supabase project.
 
 ```bash
 npm install
-npx prisma migrate dev   # creates dev.db and runs the seed
+
+# 1. Put connection strings + a session secret in .env  (see .env.example)
+#    DATABASE_URL  -> pooled connection (app runtime)
+#    DIRECT_URL    -> direct connection (migrations)
+#    SESSION_SECRET-> `openssl rand -hex 32`
+
+# 2. Create the schema and seed templates + the sample invitation
+npx prisma migrate dev
+npx prisma db seed
+
+# 3. Run it
 npm run dev
 ```
 
 Open http://localhost:3000.
 
-**Demo accounts (from seed):**
+### Seeded accounts
 
-| Role | Email | Password |
-| --- | --- | --- |
-| Couple | demo@inviteyou.com | demo1234 |
-| Admin | admin@inviteyou.com | admin1234 |
+| Role  | Email                  | Password  | Notes                                        |
+| ----- | ---------------------- | --------- | -------------------------------------------- |
+| Owner | zahirsnyder@gmail.com  | zahirf12  | ADMIN. Owns the sample invitation.           |
+| Couple| demo@inviteyou.com     | demo1234  | Test customer.                               |
+| Admin | admin@inviteyou.com    | admin1234 | Test admin.                                  |
 
-**Sample invitation:** http://localhost:3000/invite/amir-aisyah
+- **Marketplace:** http://localhost:3000/templates
+- **Sample invitation:** http://localhost:3000/invite/zahir-nisa
 
-## Features (MVP)
+> The seed always assigns the sample `zahir-nisa` project to `zahirsnyder@gmail.com`.
+> Change the owner password after first login (or edit `prisma/seed.ts` before seeding).
 
-- Register/login with session cookies
-- Couple dashboard with project list and stats (visits, QR scans, RSVP breakdown, wishes)
-- Create/edit wedding project — names, date, story, quote, cover image, music, gift details
-- Event schedule management (Akad Nikah, reception, …)
-- Photo gallery (image URLs; file upload storage is a planned integration)
-- Public animated invitation at `/invite/[slug]` — **Dark Cinematic Gold** theme:
-  opening reveal, parallax hero, live countdown, story, events, gallery, RSVP form,
-  guestbook, gift section, closing
-- RSVP with attendance / pax / meal preference + CSV export
-- Guestbook wishes with visibility moderation
-- QR code generation and download (`?src=qr` visits tracked as QR scans)
-- Publish/unpublish control; unpublished invitations 404 for guests
+## How it works
 
-## Switching to PostgreSQL
+- **Templates** are `Theme` rows with a per-invitation price (`src/lib/templates.ts`).
+- **One purchase = one invitation.** A `TemplatePurchase` is an *invitation credit*.
+  It's "unused" while `projectId` is null; the wizard consumes exactly one credit by
+  binding it to the new project (`createProjectFromTemplateAction`, in a
+  transaction). Building another wedding — any couple — needs another credit. This
+  is what stops one payment being reused for many weddings.
+- **No payment gateway yet.** "Get this template" mints one `PAID` credit
+  immediately (`claimTemplateAction`). An ADMIN can change a credit's status from
+  **Dashboard → My Templates**. Wire a real gateway (Stripe / ToyyibPay) into
+  `src/app/actions/templates.ts` + the `Payment` model later.
+- **Identity lock.** On first publish a project is stamped `lockedAt`; after that
+  `groomName` / `brideName` / `weddingDate` can't be edited (`updateProjectAction`
+  rejects the change; the editor shows the fields read-only). A different wedding =
+  a new invitation.
+- **Expiry.** On first publish `expiresAt` is set to `weddingDate + 90 days`
+  (`INVITATION_GRACE_DAYS` in `src/lib/constants.ts`). After that `/invite/[slug]`
+  shows an "invitation has ended" page to guests (owner preview still works) and the
+  page is `noindex`. **Dashboard → project** has an **Extend** button
+  (`extendInvitationAction`, +180 days, writes a `Payment` audit row).
+- **Watermark.** An invitation whose bound credit isn't `PAID` renders a
+  "Made with InviteYou" badge (`InvitationData.watermark`). Everything is `PAID`
+  today, so it never shows — the hook is there for when payments go live.
+- **The wizard** (`src/components/dashboard/InvitationWizard.tsx`) posts one payload
+  to `createProjectFromTemplateAction`, which re-checks the credit and writes the
+  project + events + gallery.
+- Only the `dark-cinematic-gold` template has a bespoke renderer; the other three
+  fall back to the classic section renderer (`InvitationRenderer.tsx`).
 
-1. In `prisma/schema.prisma`, change the datasource provider to `postgresql`.
-2. Set `DATABASE_URL` in `.env` to your Postgres connection string.
-3. Re-create migrations: `npx prisma migrate dev --name init`.
+## Deploy to Netlify + Supabase
 
-(Enum-like fields are plain strings so the schema works on both engines.)
+1. **Supabase** — create a project. In *Project Settings → Database → Connection
+   string*, copy:
+   - the **Transaction pooler** URI (port `6543`) → `DATABASE_URL`
+     (append `?pgbouncer=true&connection_limit=1`)
+   - the **direct** URI (port `5432`) → `DIRECT_URL`
+
+2. **Local migration + seed** — with both URLs in `.env`:
+   ```bash
+   npx prisma migrate deploy
+   npx prisma db seed
+   ```
+   (You can also run these later from any machine that has the env vars.)
+
+3. **Push** the repo to GitHub.
+
+4. **Netlify** — *Add new site → Import from Git*. Netlify detects Next.js and uses
+   `netlify.toml` (it auto-installs `@netlify/plugin-nextjs`). Set environment
+   variables under *Site settings → Environment variables*:
+
+   | Key                 | Value                                        |
+   | ------------------- | -------------------------------------------- |
+   | `DATABASE_URL`      | Supabase pooled URI                          |
+   | `DIRECT_URL`        | Supabase direct URI                          |
+   | `SESSION_SECRET`    | `openssl rand -hex 32`                       |
+   | `NEXT_PUBLIC_APP_URL` | `https://<your-site>.netlify.app`          |
+
+   Deploy. The build runs `prisma generate && prisma migrate deploy && next build`,
+   so schema changes ship with the deploy.
+
+5. **First run** — log in as `zahirsnyder@gmail.com`, change the password, confirm
+   `/invite/zahir-nisa` renders. If you set a custom domain, update
+   `NEXT_PUBLIC_APP_URL` and redeploy.
 
 ## Environment Variables
 
-See `.env.example`. Required: `DATABASE_URL`, `SESSION_SECRET`, `NEXT_PUBLIC_APP_URL`.
+See `.env.example`. Required: `DATABASE_URL`, `DIRECT_URL`, `SESSION_SECRET`,
+`NEXT_PUBLIC_APP_URL`.
 
-## Roadmap (per spec)
+## Roadmap
 
-- Theme system with more themes (Royal Malay Classic, Minimal Luxury White, Garden Floral — already seeded)
+- Real payments (Stripe / ToyyibPay) replacing the instant claim
+- Bespoke renderers for the Royal Malay, Minimal Luxury, and Garden Floral templates
+- File uploads (UploadThing / S3) instead of pasted image URLs
 - Guest management with unique invite links and CSV import
-- File uploads (UploadThing / S3)
-- Payments (ToyyibPay / Stripe) and plan limits
-- Admin panel and advanced analytics charts
+- Admin panel and advanced analytics

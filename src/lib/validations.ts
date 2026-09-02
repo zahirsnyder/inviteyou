@@ -40,7 +40,6 @@ export const rsvpSchema = z.object({
   phone: z.string().optional(),
   attendance: z.enum(ATTENDANCE_OPTIONS),
   paxCount: z.coerce.number().int().min(1).max(20),
-  mealPreference: z.string().optional(),
   message: z.string().max(500).optional(),
 });
 
@@ -54,6 +53,37 @@ export const galleryImageSchema = z.object({
   caption: z.string().optional(),
 });
 
+const urlOrEmpty = z.union([z.string().url("Must be a valid URL"), z.literal("")]).optional();
+
+/** Full payload for the "fill in the whole template" wizard. */
+export const createFromTemplateSchema = z.object({
+  templateSlug: z.string().min(1),
+  brideName: z.string().min(1, "Bride name is required"),
+  groomName: z.string().min(1, "Groom name is required"),
+  weddingDate: z.string().min(1, "Wedding date is required"),
+  title: z.string().optional(),
+  quote: z.string().optional(),
+  story: z.string().optional(),
+  coverImageUrl: urlOrEmpty,
+  musicUrl: urlOrEmpty,
+  giftQrUrl: urlOrEmpty,
+  giftDetails: z.string().optional(),
+  events: z.array(eventSchema).max(12),
+  gallery: z.array(galleryImageSchema).max(30),
+  publish: z.boolean(),
+});
+
+/**
+ * Returns `next` only when it is a safe same-origin path ("/dashboard", …),
+ * otherwise the fallback. Guards the post-auth redirect against open redirects.
+ */
+export function safeNextPath(next: unknown, fallback = "/dashboard"): string {
+  if (typeof next !== "string" || !next.startsWith("/") || next.startsWith("//")) {
+    return fallback;
+  }
+  return next;
+}
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type ProjectInput = z.infer<typeof projectSchema>;
@@ -61,3 +91,4 @@ export type EventInput = z.infer<typeof eventSchema>;
 export type RsvpInput = z.infer<typeof rsvpSchema>;
 export type WishInput = z.infer<typeof wishSchema>;
 export type GalleryImageInput = z.infer<typeof galleryImageSchema>;
+export type CreateFromTemplateInput = z.infer<typeof createFromTemplateSchema>;

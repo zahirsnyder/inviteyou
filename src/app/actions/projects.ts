@@ -4,8 +4,16 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { getUnusedCredit } from "@/lib/templates";
+import { defaultExpiry, extendedExpiry } from "@/lib/constants";
 import { generateProjectSlug } from "@/lib/slug";
-import { eventSchema, galleryImageSchema, projectSchema } from "@/lib/validations";
+import {
+  createFromTemplateSchema,
+  eventSchema,
+  galleryImageSchema,
+  projectSchema,
+  type CreateFromTemplateInput,
+} from "@/lib/validations";
 
 export type ActionState = { error?: string; success?: boolean };
 
@@ -19,39 +27,100 @@ async function requireOwnedProject(projectId: string) {
   return project;
 }
 
-export async function createProjectAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+/**
+ * Creates a fully filled-in invitation from a template in one shot — the payload
+ * from the multi-step wizard. Consumes one unused invitation credit for that
+ * template (binding it to the new project), writes the project plus its events
+ * and gallery, and — if published now — locks the couple's identity and sets an
+ * expiry. Redirects to the project page.
+ */
+export async function createProjectFromTemplateAction(
+  _prev: ActionState,
+  input: CreateFromTemplateInput,
+): Promise<ActionState> {
   const user = await requireUser();
-  const parsed = projectSchema.safeParse({
-    brideName: formData.get("brideName"),
-    groomName: formData.get("groomName"),
-    weddingDate: formData.get("weddingDate"),
-    title: formData.get("title") ?? undefined,
-    quote: formData.get("quote") ?? undefined,
-  });
+
+  const parsed = createFromTemplateSchema.safeParse(input);
   if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const d = parsed.data;
 
-  const { brideName, groomName, weddingDate, title, quote } = parsed.data;
-  const slug = await generateProjectSlug(groomName, brideName);
-  const defaultTheme = await prisma.theme.findUnique({ where: { slug: "dark-cinematic-gold" } });
+  const theme = await prisma.theme.findUnique({ where: { slug: d.templateSlug } });
+  if (!theme || !theme.isListed) return { error: "That template is not available" };
 
-  const project = await prisma.weddingProject.create({
-    data: {
-      userId: user.id,
-      slug,
-      brideName,
-      groomName,
-      title: title || `The Wedding of ${groomName} & ${brideName}`,
-      quote: quote || null,
-      weddingDate: new Date(weddingDate),
-      themeId: defaultTheme?.id,
-    },
-  });
+  const credit = await getUnusedCredit(user.id, theme.id);
+  if (!credit) {
+    return { error: "You don't have an invitation credit for this template. Get one from the templates page." };
+  }
 
-  redirect(`/dashboard/projects/${project.id}`);
+  const slug = await generateProjectSlug(d.groomName, d.brideName);
+  const weddingDate = new Date(d.weddingDate);
+
+  let projectId: string;
+  try {
+    projectId = await prisma.$transaction(async (tx) => {
+      const project = await tx.weddingProject.create({
+        data: {
+          userId: user.id,
+          slug,
+          themeId: theme.id,
+          brideName: d.brideName,
+          groomName: d.groomName,
+          weddingDate,
+          title: d.title?.trim() || `The Wedding of ${d.groomName} & ${d.brideName}`,
+          quote: d.quote?.trim() || null,
+          story: d.story?.trim() || null,
+          coverImageUrl: d.coverImageUrl || null,
+          musicUrl: d.musicUrl || null,
+          giftQrUrl: d.giftQrUrl || null,
+          giftDetails: d.giftDetails?.trim() || null,
+          isPublished: d.publish,
+          lockedAt: d.publish ? new Date() : null,
+          expiresAt: d.publish ? defaultExpiry(weddingDate) : null,
+          events: {
+            create: d.events.map((e, order) => ({
+              title: e.title,
+              description: e.description || null,
+              eventDate: new Date(e.eventDate),
+              startTime: e.startTime || null,
+              endTime: e.endTime || null,
+              venueName: e.venueName,
+              address: e.address,
+              mapUrl: e.mapUrl || null,
+              order,
+            })),
+          },
+          gallery: {
+            create: d.gallery.map((g, order) => ({
+              imageUrl: g.imageUrl,
+              caption: g.caption || null,
+              order,
+            })),
+          },
+        },
+      });
+
+      // Consume the credit. `updateMany` with the null guard makes this a no-op
+      // if the credit was consumed concurrently, which we then reject below.
+      const consumed = await tx.templatePurchase.updateMany({
+        where: { id: credit.id, projectId: null },
+        data: { projectId: project.id },
+      });
+      if (consumed.count !== 1) throw new Error("CREDIT_RACE");
+
+      return project.id;
+    });
+  } catch (e) {
+    if (e instanceof Error && e.message === "CREDIT_RACE") {
+      return { error: "That invitation credit was just used. Please try again." };
+    }
+    throw e;
+  }
+
+  redirect(`/dashboard/projects/${projectId}`);
 }
 
 export async function updateProjectAction(projectId: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
-  await requireOwnedProject(projectId);
+  const project = await requireOwnedProject(projectId);
   const parsed = projectSchema.safeParse({
     brideName: formData.get("brideName"),
     groomName: formData.get("groomName"),
@@ -66,12 +135,26 @@ export async function updateProjectAction(projectId: string, _prev: ActionState,
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
   const d = parsed.data;
+  // Once locked (first publish), the couple's identity is frozen — a different
+  // wedding needs a new invitation. Content fields stay editable.
+  const locked = project.lockedAt !== null;
+  const identityChanged =
+    d.brideName !== project.brideName ||
+    d.groomName !== project.groomName ||
+    new Date(d.weddingDate).getTime() !== project.weddingDate.getTime();
+  if (locked && identityChanged) {
+    return {
+      error:
+        "Names and wedding date are locked once an invitation is published. Create a new invitation for a different wedding.",
+    };
+  }
+
   await prisma.weddingProject.update({
     where: { id: projectId },
     data: {
-      brideName: d.brideName,
-      groomName: d.groomName,
-      weddingDate: new Date(d.weddingDate),
+      brideName: locked ? project.brideName : d.brideName,
+      groomName: locked ? project.groomName : d.groomName,
+      weddingDate: locked ? project.weddingDate : new Date(d.weddingDate),
       title: d.title || null,
       quote: d.quote || null,
       story: d.story || null,
@@ -85,14 +168,54 @@ export async function updateProjectAction(projectId: string, _prev: ActionState,
   return { success: true };
 }
 
-export async function setPublishedAction(projectId: string, publish: boolean) {
+export async function setPublishedAction(projectId: string, publish: boolean): Promise<ActionState> {
   const project = await requireOwnedProject(projectId);
+
+  if (publish && project.expiresAt && Date.now() > project.expiresAt.getTime()) {
+    return { error: "This invitation has expired. Extend it before publishing again." };
+  }
+
+  const firstPublish = publish && project.lockedAt === null;
   await prisma.weddingProject.update({
     where: { id: projectId },
-    data: { isPublished: publish },
+    data: {
+      isPublished: publish,
+      ...(firstPublish
+        ? { lockedAt: new Date(), expiresAt: defaultExpiry(project.weddingDate) }
+        : {}),
+    },
   });
   revalidatePath(`/dashboard/projects/${projectId}`);
   revalidatePath(`/invite/${project.slug}`);
+  return { success: true };
+}
+
+/**
+ * Extend a live/expired invitation's public window by one period. No payment
+ * gateway yet, so this is granted immediately; a Payment row is written for the
+ * record so a real gateway can slot in here later.
+ */
+export async function extendInvitationAction(projectId: string): Promise<ActionState> {
+  const user = await requireUser();
+  const project = await prisma.weddingProject.findFirst({
+    where: { id: projectId, userId: user.id },
+  });
+  if (!project) return { error: "Project not found" };
+
+  const nextExpiry = extendedExpiry(project.expiresAt);
+  await prisma.$transaction([
+    prisma.weddingProject.update({
+      where: { id: projectId },
+      data: { expiresAt: nextExpiry },
+    }),
+    prisma.payment.create({
+      data: { userId: user.id, projectId, amount: 0, provider: "manual-extension", status: "PAID" },
+    }),
+  ]);
+
+  revalidatePath(`/dashboard/projects/${projectId}`);
+  revalidatePath(`/invite/${project.slug}`);
+  return { success: true };
 }
 
 export async function deleteProjectAction(projectId: string) {
