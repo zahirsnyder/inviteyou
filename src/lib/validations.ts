@@ -33,6 +33,7 @@ export const eventSchema = z.object({
   venueName: z.string().min(1, "Venue name is required"),
   address: z.string().min(1, "Address is required"),
   mapUrl: z.union([z.string().url("Must be a valid URL"), z.literal("")]).optional(),
+  wazeUrl: z.union([z.string().url("Must be a valid URL"), z.literal("")]).optional(),
 });
 
 export const rsvpSchema = z.object({
@@ -54,6 +55,10 @@ export const galleryImageSchema = z.object({
 });
 
 const urlOrEmpty = z.union([z.string().url("Must be a valid URL"), z.literal("")]).optional();
+// A link OR an inline data: image (from the upload+crop control). ~1MB cap.
+const imageRef = z
+  .union([z.string().url(), z.string().startsWith("data:image/"), z.literal("")])
+  .optional();
 
 /** Full payload for the "fill in the whole template" wizard. */
 export const createFromTemplateSchema = z.object({
@@ -64,10 +69,17 @@ export const createFromTemplateSchema = z.object({
   title: z.string().optional(),
   quote: z.string().optional(),
   story: z.string().optional(),
-  coverImageUrl: urlOrEmpty,
+  coverImageUrl: imageRef,
   musicUrl: urlOrEmpty,
-  giftQrUrl: urlOrEmpty,
-  giftDetails: z.string().optional(),
+  giftQrUrl: imageRef,
+  giftDetails: z.string().max(500).optional(),
+  showGift: z.boolean().optional(),
+  showGiftQr: z.boolean().optional(),
+  contactName1: z.string().max(120).optional(),
+  contactPhone1: z.string().max(40).optional(),
+  contactName2: z.string().max(120).optional(),
+  contactPhone2: z.string().max(40).optional(),
+  showContact: z.boolean().optional(),
   events: z.array(eventSchema).max(12),
   gallery: z.array(galleryImageSchema).max(30),
   publish: z.boolean(),

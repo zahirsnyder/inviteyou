@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { updateProjectAction, type ActionState } from "@/app/actions/projects";
+import { QrImageInput } from "./QrImageInput";
 
 const inputClass =
   "w-full rounded-lg bg-white border border-ink/15 px-4 py-3 focus:border-gold-dark focus:outline-none transition-colors";
@@ -18,14 +19,24 @@ export type ProjectFormData = {
   coverImageUrl: string;
   musicUrl: string;
   giftDetails: string;
+  giftQrUrl: string;
+  showGift: boolean;
+  showGiftQr: boolean;
+  contactName1: string;
+  contactPhone1: string;
+  contactName2: string;
+  contactPhone2: string;
+  showContact: boolean;
 };
 
 export function EditProjectForm({
   project,
   locked = false,
+  showCover = true,
 }: {
   project: ProjectFormData;
   locked?: boolean;
+  showCover?: boolean;
 }) {
   const boundAction = updateProjectAction.bind(null, project.id);
   const [state, formAction, pending] = useActionState<ActionState, FormData>(boundAction, {});
@@ -111,50 +122,83 @@ export function EditProjectForm({
         />
       </div>
 
+      {showCover && (
+        <div>
+          <label htmlFor="coverImageUrl" className={labelClass}>
+            Cover Image URL
+          </label>
+          <input
+            id="coverImageUrl"
+            name="coverImageUrl"
+            type="url"
+            defaultValue={project.coverImageUrl}
+            className={inputClass}
+            placeholder="https://…"
+          />
+          <p className="text-xs text-ink/40 mt-1.5">
+            A wide, high-resolution photo works best for the cinematic hero.
+          </p>
+        </div>
+      )}
+
       <div>
-        <label htmlFor="coverImageUrl" className={labelClass}>
-          Cover Image URL
+        <label htmlFor="musicUrl" className={labelClass}>
+          Background Music URL <span className="text-ink/30 normal-case">(mp3)</span>
         </label>
         <input
-          id="coverImageUrl"
-          name="coverImageUrl"
+          id="musicUrl"
+          name="musicUrl"
           type="url"
-          defaultValue={project.coverImageUrl}
+          defaultValue={project.musicUrl}
           className={inputClass}
-          placeholder="https://…"
+          placeholder="https://…/song.mp3"
         />
-        <p className="text-xs text-ink/40 mt-1.5">
-          A wide, high-resolution photo works best for the cinematic hero.
-        </p>
       </div>
 
-      <div className="grid sm:grid-cols-2 gap-6">
-        <div>
-          <label htmlFor="musicUrl" className={labelClass}>
-            Background Music URL <span className="text-ink/30 normal-case">(mp3)</span>
-          </label>
-          <input
-            id="musicUrl"
-            name="musicUrl"
-            type="url"
-            defaultValue={project.musicUrl}
-            className={inputClass}
-            placeholder="https://…/song.mp3"
-          />
-        </div>
+      {/* Gifts & money */}
+      <fieldset className="rounded-xl border border-ink/10 p-5 space-y-4">
+        <label className="flex items-center gap-3 text-sm font-medium">
+          <input type="checkbox" name="showGift" defaultChecked={project.showGift} className="h-4 w-4 accent-gold-dark" />
+          Show a gift / money section
+        </label>
         <div>
           <label htmlFor="giftDetails" className={labelClass}>
-            Gift / Bank Details
+            Bank / account details
           </label>
-          <input
+          <textarea
             id="giftDetails"
             name="giftDetails"
+            rows={3}
             defaultValue={project.giftDetails}
             className={inputClass}
-            placeholder="Maybank 1234 5678 9012 (Name)"
+            placeholder="Maybank · 1234 5678 9012 · Zahir bin Zakariah"
           />
         </div>
-      </div>
+        <div>
+          <span className={labelClass}>
+            Payment QR image <span className="text-ink/30 normal-case">(DuitNow / bank QR — upload &amp; crop)</span>
+          </span>
+          <QrImageInput name="giftQrUrl" defaultValue={project.giftQrUrl} />
+        </div>
+        <label className="flex items-center gap-3 text-sm">
+          <input type="checkbox" name="showGiftQr" defaultChecked={project.showGiftQr} className="h-4 w-4 accent-gold-dark" />
+          Show the payment QR on the invitation
+        </label>
+      </fieldset>
+
+      {/* Contact */}
+      <fieldset className="rounded-xl border border-ink/10 p-5 space-y-4">
+        <label className="flex items-center gap-3 text-sm font-medium">
+          <input type="checkbox" name="showContact" defaultChecked={project.showContact} className="h-4 w-4 accent-gold-dark" />
+          Show a contact section (phone numbers)
+        </label>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <input name="contactName1" defaultValue={project.contactName1} className={inputClass} placeholder="Contact 1 name" />
+          <input name="contactPhone1" defaultValue={project.contactPhone1} className={inputClass} placeholder="Contact 1 phone" />
+          <input name="contactName2" defaultValue={project.contactName2} className={inputClass} placeholder="Contact 2 name (optional)" />
+          <input name="contactPhone2" defaultValue={project.contactPhone2} className={inputClass} placeholder="Contact 2 phone (optional)" />
+        </div>
+      </fieldset>
 
       {state.error && (
         <p className="text-red-600 text-sm rounded-lg bg-red-50 border border-red-200 px-4 py-3">

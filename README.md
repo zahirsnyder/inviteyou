@@ -25,8 +25,8 @@ You need a PostgreSQL database. Use a local Postgres, or a free Supabase project
 npm install
 
 # 1. Put connection strings + a session secret in .env  (see .env.example)
-#    DATABASE_URL  -> pooled connection (app runtime)
-#    DIRECT_URL    -> direct connection (migrations)
+#    DATABASE_URL  -> Supabase transaction pooler, 6543 (app runtime)
+#    DIRECT_URL    -> Supabase session pooler, 5432 (migrations)
 #    SESSION_SECRET-> `openssl rand -hex 32`
 
 # 2. Create the schema and seed templates + the sample invitation
@@ -80,16 +80,33 @@ Open http://localhost:3000.
 - **The wizard** (`src/components/dashboard/InvitationWizard.tsx`) posts one payload
   to `createProjectFromTemplateAction`, which re-checks the credit and writes the
   project + events + gallery.
-- Only the `dark-cinematic-gold` template has a bespoke renderer; the other three
-  fall back to the classic section renderer (`InvitationRenderer.tsx`).
+- **Six templates, each its own renderer** in `src/components/invitation/themes/`:
+  `CinematicJourneyTheme` (scroll journey), `RoyalMalayTheme` (ornate/symmetric),
+  `MinimalLuxuryTheme` (editorial/left-aligned/light), `GardenFloralTheme`
+  (organic/rounded), `SunsetTerracottaTheme` (arches/colour-bands),
+  `MidnightSapphireTheme` (celestial/timeline). `InvitationRenderer` switches on
+  `themeSlug`; `ClassicTheme` is the fallback for unknown slugs. Palette per
+  template still comes from a preset (`themes/presets.ts`) applied as CSS custom
+  properties. Shared bits in `themes/../parts/` (`RsvpForm`, `WishForm`,
+  `useCountdown`, `useInvitationShell`).
+- **Animated backgrounds** (`src/components/invitation/three/`): raw three.js.
+  `ParticleField` (`drift` gold dust / `rise` embers / `fall` petals / `stars`
+  parallax field with shooting stars) and `SunsetHaze` (animated gradient shader).
+  Each honours `prefers-reduced-motion` and fully disposes on unmount.
+- **Add a template:** new `Theme` row in `prisma/seed.ts` + a preset entry + a
+  renderer component wired into `InvitationRenderer`.
+- **Live demo per template:** `/preview/[slug]` renders the sample invitation
+  content with that template's renderer (linked as "View live demo").
 
 ## Deploy to Netlify + Supabase
 
 1. **Supabase** — create a project. In *Project Settings → Database → Connection
-   string*, copy:
-   - the **Transaction pooler** URI (port `6543`) → `DATABASE_URL`
+   string*, use the **pooler** host (`aws-0-<region>.pooler.supabase.com`) for both
+   URLs — the `db.<ref>.supabase.co` direct host is IPv6-only and unreachable from
+   Netlify's IPv4-only build servers:
+   - **Transaction pooler**, port `6543` → `DATABASE_URL`
      (append `?pgbouncer=true&connection_limit=1`)
-   - the **direct** URI (port `5432`) → `DIRECT_URL`
+   - **Session pooler**, port `5432`, no `pgbouncer` → `DIRECT_URL`
 
 2. **Local migration + seed** — with both URLs in `.env`:
    ```bash
@@ -106,8 +123,8 @@ Open http://localhost:3000.
 
    | Key                 | Value                                        |
    | ------------------- | -------------------------------------------- |
-   | `DATABASE_URL`      | Supabase pooled URI                          |
-   | `DIRECT_URL`        | Supabase direct URI                          |
+   | `DATABASE_URL`      | Supabase transaction pooler (6543, pgbouncer) |
+   | `DIRECT_URL`        | Supabase session pooler (5432, no pgbouncer)  |
    | `SESSION_SECRET`    | `openssl rand -hex 32`                       |
    | `NEXT_PUBLIC_APP_URL` | `https://<your-site>.netlify.app`          |
 
@@ -126,7 +143,7 @@ See `.env.example`. Required: `DATABASE_URL`, `DIRECT_URL`, `SESSION_SECRET`,
 ## Roadmap
 
 - Real payments (Stripe / ToyyibPay) replacing the instant claim
-- Bespoke renderers for the Royal Malay, Minimal Luxury, and Garden Floral templates
+- Per-template file uploads and richer motion polish
 - File uploads (UploadThing / S3) instead of pasted image URLs
 - Guest management with unique invite links and CSV import
 - Admin panel and advanced analytics

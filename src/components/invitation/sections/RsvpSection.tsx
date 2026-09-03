@@ -118,7 +118,7 @@ export function RsvpSection({ slug }: { slug: string }) {
               <button
                 type="submit"
                 disabled={pending}
-                className="w-full rounded-full bg-gold text-night py-4 font-medium tracking-[0.15em] uppercase text-sm hover:bg-gold-light transition-colors disabled:opacity-60"
+                className="w-full rounded-full bg-gold text-[color:var(--inv-onaccent)] py-4 font-medium tracking-[0.15em] uppercase text-sm hover:bg-gold-light transition-colors disabled:opacity-60"
               >
                 {pending ? "Sending…" : "Send RSVP"}
               </button>

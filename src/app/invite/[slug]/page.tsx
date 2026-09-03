@@ -4,6 +4,22 @@ import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { getSessionUserId } from "@/lib/auth";
 import { isExpired } from "@/lib/constants";
+import { getFeatures } from "@/lib/templateFeatures";
+import type { InvitationContact } from "@/components/invitation/types";
+
+function buildContacts(p: {
+  contactName1: string | null;
+  contactPhone1: string | null;
+  contactName2: string | null;
+  contactPhone2: string | null;
+}): InvitationContact[] {
+  return [
+    { name: p.contactName1, phone: p.contactPhone1 },
+    { name: p.contactName2, phone: p.contactPhone2 },
+  ]
+    .filter((c) => c.phone?.trim())
+    .map((c) => ({ name: c.name?.trim() || "Contact", phone: c.phone!.trim() }));
+}
 import { InvitationRenderer } from "@/components/invitation/InvitationRenderer";
 import { InvitationEnded } from "@/components/invitation/InvitationEnded";
 import type { InvitationData } from "@/components/invitation/types";
@@ -92,9 +108,13 @@ export default async function InvitePage({ params, searchParams }: Props) {
     weddingDateISO: project.weddingDate.toISOString(),
     coverImageUrl: project.coverImageUrl,
     musicUrl: project.musicUrl,
+    themeSlug: project.theme?.slug ?? "dark-cinematic-gold",
+    features: getFeatures(project.theme?.slug ?? "dark-cinematic-gold"),
     giftQrUrl: project.giftQrUrl,
     giftDetails: project.giftDetails,
-    themeSlug: project.theme?.slug ?? "dark-cinematic-gold",
+    showGift: project.showGift,
+    showGiftQr: project.showGiftQr,
+    contacts: project.showContact ? buildContacts(project) : [],
     events: project.events.map((e) => ({
       id: e.id,
       title: e.title,
@@ -105,6 +125,7 @@ export default async function InvitePage({ params, searchParams }: Props) {
       venueName: e.venueName,
       address: e.address,
       mapUrl: e.mapUrl,
+      wazeUrl: e.wazeUrl,
     })),
     gallery: project.gallery.map((g) => ({
       id: g.id,

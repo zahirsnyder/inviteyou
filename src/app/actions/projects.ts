@@ -73,6 +73,13 @@ export async function createProjectFromTemplateAction(
           musicUrl: d.musicUrl || null,
           giftQrUrl: d.giftQrUrl || null,
           giftDetails: d.giftDetails?.trim() || null,
+          showGift: d.showGift ?? true,
+          showGiftQr: d.showGiftQr ?? true,
+          contactName1: d.contactName1?.trim() || null,
+          contactPhone1: d.contactPhone1?.trim() || null,
+          contactName2: d.contactName2?.trim() || null,
+          contactPhone2: d.contactPhone2?.trim() || null,
+          showContact: d.showContact ?? true,
           isPublished: d.publish,
           lockedAt: d.publish ? new Date() : null,
           expiresAt: d.publish ? defaultExpiry(weddingDate) : null,
@@ -86,6 +93,7 @@ export async function createProjectFromTemplateAction(
               venueName: e.venueName,
               address: e.address,
               mapUrl: e.mapUrl || null,
+              wazeUrl: e.wazeUrl || null,
               order,
             })),
           },
@@ -136,12 +144,13 @@ export async function updateProjectAction(projectId: string, _prev: ActionState,
 
   const d = parsed.data;
   // Once locked (first publish), the couple's identity is frozen — a different
-  // wedding needs a new invitation. Content fields stay editable.
+  // wedding needs a new invitation. Content fields stay editable. Compare the
+  // date at day resolution: the form's date input has no time-of-day, so an
+  // exact-timestamp compare would falsely trip for any non-midnight wedding.
   const locked = project.lockedAt !== null;
+  const sameDay = d.weddingDate === project.weddingDate.toISOString().slice(0, 10);
   const identityChanged =
-    d.brideName !== project.brideName ||
-    d.groomName !== project.groomName ||
-    new Date(d.weddingDate).getTime() !== project.weddingDate.getTime();
+    d.brideName !== project.brideName || d.groomName !== project.groomName || !sameDay;
   if (locked && identityChanged) {
     return {
       error:
@@ -149,18 +158,36 @@ export async function updateProjectAction(projectId: string, _prev: ActionState,
     };
   }
 
+  const str = (k: string) => {
+    const v = formData.get(k);
+    return typeof v === "string" && v.trim() ? v.trim() : null;
+  };
+  const bool = (k: string) => formData.get(k) === "on";
+
   await prisma.weddingProject.update({
     where: { id: projectId },
     data: {
       brideName: locked ? project.brideName : d.brideName,
       groomName: locked ? project.groomName : d.groomName,
-      weddingDate: locked ? project.weddingDate : new Date(d.weddingDate),
+      // Keep the stored timestamp (with its time-of-day) unless the day changed.
+      weddingDate: locked || sameDay ? project.weddingDate : new Date(d.weddingDate),
       title: d.title || null,
       quote: d.quote || null,
       story: d.story || null,
-      coverImageUrl: d.coverImageUrl || null,
+      // The cover field may be hidden for some templates — keep the stored value
+      // when it isn't submitted rather than wiping it.
+      coverImageUrl:
+        formData.get("coverImageUrl") === null ? project.coverImageUrl : d.coverImageUrl || null,
       musicUrl: d.musicUrl || null,
       giftDetails: d.giftDetails || null,
+      giftQrUrl: str("giftQrUrl"),
+      showGift: bool("showGift"),
+      showGiftQr: bool("showGiftQr"),
+      contactName1: str("contactName1"),
+      contactPhone1: str("contactPhone1"),
+      contactName2: str("contactName2"),
+      contactPhone2: str("contactPhone2"),
+      showContact: bool("showContact"),
     },
   });
 
@@ -235,6 +262,7 @@ export async function addEventAction(projectId: string, _prev: ActionState, form
     venueName: formData.get("venueName"),
     address: formData.get("address"),
     mapUrl: formData.get("mapUrl") ?? undefined,
+    wazeUrl: formData.get("wazeUrl") ?? undefined,
   });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
@@ -251,12 +279,72 @@ export async function addEventAction(projectId: string, _prev: ActionState, form
       venueName: d.venueName,
       address: d.address,
       mapUrl: d.mapUrl || null,
+      wazeUrl: d.wazeUrl || null,
       order: count,
     },
   });
 
   revalidatePath(`/dashboard/projects/${projectId}/editor`);
   return { success: true };
+}
+
+export async function updateEventAction(
+  projectId: string,
+  eventId: string,
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  await requireOwnedProject(projectId);
+  const parsed = eventSchema.safeParse({
+    title: formData.get("title"),
+    description: formData.get("description") ?? undefined,
+    eventDate: formData.get("eventDate"),
+    startTime: formData.get("startTime") ?? undefined,
+    endTime: formData.get("endTime") ?? undefined,
+    venueName: formData.get("venueName"),
+    address: formData.get("address"),
+    mapUrl: formData.get("mapUrl") ?? undefined,
+    wazeUrl: formData.get("wazeUrl") ?? undefined,
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+
+  const d = parsed.data;
+  await prisma.weddingEvent.updateMany({
+    where: { id: eventId, projectId },
+    data: {
+      title: d.title,
+      description: d.description || null,
+      eventDate: new Date(d.eventDate),
+      startTime: d.startTime || null,
+      endTime: d.endTime || null,
+      venueName: d.venueName,
+      address: d.address,
+      mapUrl: d.mapUrl || null,
+      wazeUrl: d.wazeUrl || null,
+    },
+  });
+
+  revalidatePath(`/dashboard/projects/${projectId}/editor`);
+  return { success: true };
+}
+
+/** Swap this event's order with its neighbour, to arrange the running order. */
+export async function moveEventAction(projectId: string, eventId: string, dir: "up" | "down") {
+  await requireOwnedProject(projectId);
+  const events = await prisma.weddingEvent.findMany({
+    where: { projectId },
+    orderBy: { order: "asc" },
+    select: { id: true, order: true },
+  });
+  const i = events.findIndex((e) => e.id === eventId);
+  const j = dir === "up" ? i - 1 : i + 1;
+  if (i < 0 || j < 0 || j >= events.length) return;
+
+  await prisma.$transaction([
+    prisma.weddingEvent.update({ where: { id: events[i].id }, data: { order: events[j].order } }),
+    prisma.weddingEvent.update({ where: { id: events[j].id }, data: { order: events[i].order } }),
+  ]);
+  revalidatePath(`/dashboard/projects/${projectId}/editor`);
 }
 
 export async function deleteEventAction(projectId: string, eventId: string) {

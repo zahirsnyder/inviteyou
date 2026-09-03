@@ -1,21 +1,41 @@
 import Link from "next/link";
 import type { InvitationData } from "./types";
 import { CinematicJourneyTheme } from "./themes/CinematicJourneyTheme";
-import { DarkGoldTheme } from "./themes/DarkGoldTheme";
+import { ClassicTheme } from "./themes/ClassicTheme";
+import { RoyalMalayTheme } from "./themes/RoyalMalayTheme";
+import { MinimalLuxuryTheme } from "./themes/MinimalLuxuryTheme";
+import { GardenFloralTheme } from "./themes/GardenFloralTheme";
+import { SunsetTerracottaTheme } from "./themes/SunsetTerracottaTheme";
+import { MidnightSapphireTheme } from "./themes/MidnightSapphireTheme";
 
 /**
- * Picks the theme component for an invitation. The flagship
- * dark-cinematic-gold theme renders the scroll-storytelling journey;
- * other seeded themes fall back to the classic section renderer until
- * their own renderers are built.
+ * Each template has its own renderer with a distinct layout and motion
+ * language. `ClassicTheme` is the fallback for any unrecognised slug.
  */
 export function InvitationRenderer({ data }: { data: InvitationData }) {
-  const theme =
-    data.themeSlug === "dark-cinematic-gold" ? (
-      <CinematicJourneyTheme data={data} />
-    ) : (
-      <DarkGoldTheme data={data} />
-    );
+  let theme;
+  switch (data.themeSlug) {
+    case "dark-cinematic-gold":
+      theme = <CinematicJourneyTheme data={data} />;
+      break;
+    case "royal-malay-classic":
+      theme = <RoyalMalayTheme data={data} />;
+      break;
+    case "minimal-luxury-white":
+      theme = <MinimalLuxuryTheme data={data} />;
+      break;
+    case "garden-floral":
+      theme = <GardenFloralTheme data={data} />;
+      break;
+    case "sunset-terracotta":
+      theme = <SunsetTerracottaTheme data={data} />;
+      break;
+    case "midnight-sapphire":
+      theme = <MidnightSapphireTheme data={data} />;
+      break;
+    default:
+      theme = <ClassicTheme data={data} />;
+  }
 
   return (
     <>

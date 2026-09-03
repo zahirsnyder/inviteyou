@@ -42,8 +42,18 @@ model WeddingProject {
   themeId       String?
   musicUrl      String?
   coverImageUrl String?
+  // Gift / money: `giftDetails` = bank + account text, `giftQrUrl` = a payment
+  // QR image (DuitNow, bank app, …). Each side can be toggled on the invitation.
   giftQrUrl     String?
   giftDetails   String?
+  showGift      Boolean   @default(true)
+  showGiftQr    Boolean   @default(true)
+  // Up to two contact people for guest questions; the block can be hidden.
+  contactName1  String?
+  contactPhone1 String?
+  contactName2  String?
+  contactPhone2 String?
+  showContact   Boolean   @default(true)
   maxRsvp       Int?
   rsvpDeadline  DateTime?
   // Once an invitation is first published it is "locked": the couple's identity
@@ -78,7 +88,8 @@ model WeddingEvent {
   endTime     String?
   venueName   String
   address     String
-  mapUrl      String?
+  mapUrl      String? // Google Maps link
+  wazeUrl     String? // Waze link
   order       Int      @default(0)
 
   project WeddingProject @relation(fields: [projectId], references: [id], onDelete: Cascade)

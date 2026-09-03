@@ -2,6 +2,7 @@
 
 import type { InvitationEvent } from "../types";
 import { Reveal, SectionHeading } from "../shared";
+import { MapButtons } from "../parts/MapButtons";
 
 const dateFmt = new Intl.DateTimeFormat("en-MY", {
   weekday: "long",
@@ -41,16 +42,12 @@ export function EventsSection({ events }: { events: InvitationEvent[] }) {
                 </div>
                 <p className="font-serif text-xl text-cream/90">{event.venueName}</p>
                 <p className="text-cream/50 text-sm mt-1 mb-6">{event.address}</p>
-                {event.mapUrl && (
-                  <a
-                    href={event.mapUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-block rounded-full border border-gold/50 px-8 py-3 text-gold text-xs uppercase tracking-[0.2em] hover:bg-gold hover:text-night transition-colors"
-                  >
-                    Open Map
-                  </a>
-                )}
+                <MapButtons
+                  mapUrl={event.mapUrl}
+                  wazeUrl={event.wazeUrl}
+                  wrapClass="flex flex-wrap items-center justify-center gap-3"
+                  linkClass="inline-block rounded-full border border-gold/50 px-8 py-3 text-gold text-xs uppercase tracking-[0.2em] hover:bg-gold hover:text-[color:var(--inv-onaccent)] transition-colors"
+                />
               </div>
             </Reveal>
           ))}

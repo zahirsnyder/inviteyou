@@ -28,7 +28,9 @@
   --color-night-soft: var(--night-soft);
   --color-ink: var(--ink);
 
-  --font-serif: var(--font-cormorant), Georgia, serif;
+  /* --inv-heading lets an invitation template swap the display face; it
+     falls back to Cormorant everywhere else. */
+  --font-serif: var(--inv-heading, var(--font-cormorant)), Georgia, serif;
   --font-sans: var(--font-jakarta), system-ui, sans-serif;
   --font-signature: var(--font-great-vibes), cursive;
 }
@@ -39,20 +41,20 @@ body {
   font-family: var(--font-jakarta), system-ui, sans-serif;
 }
 
-/* Thin gold scrollbar for the dark invitation pages */
+/* Thin accent scrollbar for the invitation pages */
 .invitation-scroll::-webkit-scrollbar {
   width: 6px;
 }
 .invitation-scroll::-webkit-scrollbar-thumb {
-  background: rgba(201, 162, 75, 0.4);
+  background: color-mix(in srgb, var(--gold) 40%, transparent);
   border-radius: 3px;
 }
 
 ::selection {
-  background: rgba(201, 162, 75, 0.35);
+  background: color-mix(in srgb, var(--gold) 35%, transparent);
 }
 
-/* Soft gold divider ornament */
+/* Soft accent divider ornament — follows the active theme's --gold */
 .gold-divider {
   display: flex;
   align-items: center;
@@ -64,7 +66,11 @@ body {
   content: "";
   height: 1px;
   flex: 1;
-  background: linear-gradient(to var(--divider-dir, right), transparent, rgba(201, 162, 75, 0.6));
+  background: linear-gradient(
+    to var(--divider-dir, right),
+    transparent,
+    color-mix(in srgb, var(--gold) 60%, transparent)
+  );
 }
 .gold-divider::before {
   --divider-dir: right;

@@ -1,3 +1,5 @@
+import type { TemplateFeatures } from "@/lib/templateFeatures";
+
 export type InvitationEvent = {
   id: string;
   title: string;
@@ -8,6 +10,7 @@ export type InvitationEvent = {
   venueName: string;
   address: string;
   mapUrl: string | null;
+  wazeUrl: string | null;
 };
 
 export type InvitationWish = {
@@ -23,6 +26,8 @@ export type InvitationGalleryImage = {
   caption: string | null;
 };
 
+export type InvitationContact = { name: string; phone: string };
+
 export type InvitationData = {
   slug: string;
   /** Show a "made with InviteYou" badge (unpaid / preview invitations). */
@@ -35,9 +40,16 @@ export type InvitationData = {
   weddingDateISO: string;
   coverImageUrl: string | null;
   musicUrl: string | null;
+  themeSlug: string;
+  /** Sections this template supports — renderers gate optional blocks on it. */
+  features: TemplateFeatures;
+  // Gift / money
   giftQrUrl: string | null;
   giftDetails: string | null;
-  themeSlug: string;
+  showGift: boolean;
+  showGiftQr: boolean;
+  // Contacts (already filtered to the visible, non-empty ones)
+  contacts: InvitationContact[];
   events: InvitationEvent[];
   gallery: InvitationGalleryImage[];
   wishes: InvitationWish[];

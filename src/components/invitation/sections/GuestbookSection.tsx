@@ -66,7 +66,7 @@ export function GuestbookSection({
             <button
               type="submit"
               disabled={pending}
-              className="rounded-full border border-gold/60 px-8 py-3 text-gold text-xs uppercase tracking-[0.2em] hover:bg-gold hover:text-night transition-colors disabled:opacity-60"
+              className="rounded-full border border-gold/60 px-8 py-3 text-gold text-xs uppercase tracking-[0.2em] hover:bg-gold hover:text-[color:var(--inv-onaccent)] transition-colors disabled:opacity-60"
             >
               {pending ? "Sending…" : "Leave a Wish"}
             </button>

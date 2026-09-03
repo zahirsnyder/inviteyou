@@ -35,7 +35,7 @@ export function GiftSection({ data }: { data: InvitationData }) {
                     setCopied(true);
                     setTimeout(() => setCopied(false), 2000);
                   }}
-                  className="mt-6 rounded-full border border-gold/50 px-8 py-3 text-gold text-xs uppercase tracking-[0.2em] hover:bg-gold hover:text-night transition-colors"
+                  className="mt-6 rounded-full border border-gold/50 px-8 py-3 text-gold text-xs uppercase tracking-[0.2em] hover:bg-gold hover:text-[color:var(--inv-onaccent)] transition-colors"
                 >
                   {copied ? "Copied ✦" : "Copy Details"}
                 </button>
